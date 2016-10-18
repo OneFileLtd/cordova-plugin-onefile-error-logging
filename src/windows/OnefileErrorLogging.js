@@ -1,7 +1,7 @@
 (function () {
     "use strict";
-    var OnefileSupporOnefileErrorLoggingProxytProxy = {
-		onefileErrorLogging: function (win, fail, args, env) {
+    var OnefileErrorLoggingProxy = {
+		logError: function (win, fail, args, env) {
 			try {
 				if (!args[0]) {
 					fail("Missing options");
