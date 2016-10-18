@@ -1,0 +1,14 @@
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+		id="cordova-plugin-onefile-error-logging"
+		version="0.0.1">
+	<name>OneFile Error Logger</name>
+	<description>Cordova Plugin OneFile Error Logger</description>
+	<license>Onefile Limited</license>
+	<keywords>nomad,onefile</keywords>
+	<repo>https://github.com/ben3005/cordova-plugin-onefile-error-logging.git</repo>
+	<issue></issue>
+
+	<js-module src="www/onefileErrorLogging.js" name="OnefileErrorLogging">
+		<clobbers target="OnefileErrorLogging" />
+	</js-module>
+</plugin>
