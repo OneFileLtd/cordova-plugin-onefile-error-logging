@@ -11,4 +11,10 @@
 	<js-module src="www/onefileErrorLogging.js" name="OnefileErrorLogging">
 		<clobbers target="OnefileErrorLogging" />
 	</js-module>
+
+	<platform name="windows">
+		<js-module src="src/windows/OnefileErrorLogging.js" name="OnefileErrorLoggingProxy">
+			<merges target="" />
+		</js-module>
+	</platform>
 </plugin>
