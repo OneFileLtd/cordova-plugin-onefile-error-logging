@@ -6,16 +6,40 @@ ErrorLogging.prototype.logError = function (config, success, error) {
 		error('Missing endpoint');
 		return;
 	}
-	if (!config.device) {
+
+	if (!config.headers) {
 		error('Missing device info');
 		return;
-	}
-	if (!config.files) {
-		error('Missing files');
+	} else if (!config.headers.userId) {
+		error('Missing user id header');
+		return;
+	} else if (!config.headers.currentPlatform) {
+		error('Missing current platform header');
+		return;
+	} else if (!config.headers.currentPlatformVersion) {
+		error('Missing current platform version header');
 		return;
 	}
+
 	if (!config.error) {
 		error('Missing error');
+		return;
+	} else if (!config.error.name) {
+		error('Missing error name');
+		return;
+	} else if (!config.error.message) {
+		error('Missing error message');
+		return;
+	} else if (!config.error.cause) {
+		error('Missing error cause');
+		return;
+	} else if (!config.error.stackTrace) {
+		error('Missing error stack trace');
+		return;
+	}
+
+	if (!config.currentUsername) {
+		error('Missing error current username');
 		return;
 	}
 	exec(success, error, "OnefileErrorLogging", "logError", [config]);
