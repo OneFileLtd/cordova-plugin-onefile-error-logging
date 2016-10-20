@@ -17,4 +17,13 @@
 			<merges target="" />
 		</js-module>
 	</platform>
+	
+	<platform name="android">
+		<config-file target="config.xml" parent="/*">
+			<feature name="OnefileErrorLogging">
+				<param name="android-package" value="uk.co.onefile.onefileeportfolio.errorlogging.OnefileErrorLogging"/>
+			</feature>
+		</config-file>
+		<source-file src="src/android/OnefileErrorLogging.java" target-dir="src/uk/co/onefile/onefileeportfolio/errorlogging/" />
+	</platform>
 </plugin>
