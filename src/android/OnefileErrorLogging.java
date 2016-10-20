@@ -87,4 +87,3 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		}
 	}
 }
-}
