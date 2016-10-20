@@ -25,5 +25,6 @@
 			</feature>
 		</config-file>
 		<source-file src="src/android/OnefileErrorLogging.java" target-dir="src/uk/co/onefile/onefileeportfolio/errorlogging/" />
+		<source-file src="src/android/ErrorDatabaseAccess.java" target-dir="src/uk/co/onefile/onefileeportfolio/errorlogging/" />
 	</platform>
 </plugin>
