@@ -12,6 +12,22 @@
 		<clobbers target="OnefileErrorLogging" />
 	</js-module>
 
+	<platform name="ios">
+		<config-file target="config.xml" parent="/*">
+			<feature name="OnefileErrorLogging">
+				<param name="ios-package" value="OnefileErrorLogging" />
+			</feature>
+		</config-file>
+		<header-file src="src/ios/OnefileErrorLogging.h" />
+		<header-file src="src/ios/database.h" />
+		<header-file src="src/ios/sendrequest.h" />
+		<source-file src="src/ios/OnefileErrorLogging.m" />
+		<source-file src="src/ios/database.m" />
+		<source-file src="src/ios/sendrequest.m" />
+		<framework src="libsqlite3.0.tbd" />
+		<framework src="foundation.framework" />
+	</platform>
+
 	<platform name="windows">
 		<js-module src="src/windows/OnefileErrorLogging.js" name="OnefileErrorLoggingProxy">
 			<merges target="" />
