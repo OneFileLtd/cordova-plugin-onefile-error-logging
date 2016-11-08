@@ -55,6 +55,17 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		}
 	}
 
+	public void onDestroy() {
+		if (this.receiver != null) {
+			try {
+				webView.getContext().unregisterReceiver(this.receiver);
+			} catch (Exception e) {
+			} finally {
+				receiver = null;
+			}
+		}
+	}
+
 	private JSONObject getNextError() throws JSONException {
 		SQLiteDatabase db = getDbConnection(cordova.getActivity()).getReadableDatabase();
 		String[] projection = {
@@ -71,45 +82,52 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		};
 
 		String sortOrder = ErrorDatabaseAccess.ErrorEntry.COLUMN_DATE_LOGGED + " ASC";
+		Cursor c = null;
+		try {
+			c = db.query(
+					ErrorDatabaseAccess.ErrorEntry.TABLE_NAME,
+					projection,
+					null,
+					null,
+					null,
+					null,
+					sortOrder,
+					"1"
+			);
 
-		Cursor c = db.query(
-				ErrorDatabaseAccess.ErrorEntry.TABLE_NAME,
-				projection,
-				null,
-				null,
-				null,
-				null,
-				sortOrder,
-				"1"
-		);
+			if (c != null && c.getCount() > 0) {
+				JSONObject obj = new JSONObject();
+				JSONObject err = new JSONObject();
+				JSONObject headers = new JSONObject();
 
-		if (c != null && c.getCount() > 0) {
-			JSONObject obj = new JSONObject();
-			JSONObject err = new JSONObject();
-			JSONObject headers = new JSONObject();
+				c.moveToFirst();
+				obj.put("id", c.getInt(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_ID)));
+				err.put("name", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_NAME)));
+				err.put("message", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_MESSAGE)));
+				err.put("cause", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CAUSE)));
+				err.put("stackTrace", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_STACK_TRACE)));
+				headers.put("userId", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_USER_ID)));
+				headers.put("currentPlatform", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_PLATFORM)));
+				headers.put("currentPlatformVersion", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_PLATFORM_VERSION)));
+				obj.put("currentUsername", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_USERNAME)));
+				obj.put("endpoint", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_ENDPOINT)));
 
-			c.moveToFirst();
-			obj.put("id", c.getInt(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_ID)));
-			err.put("name", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_NAME)));
-			err.put("message", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_MESSAGE)));
-			err.put("cause", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CAUSE)));
-			err.put("stackTrace", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_STACK_TRACE)));
-			headers.put("userId", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_USER_ID)));
-			headers.put("currentPlatform", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_PLATFORM)));
-			headers.put("currentPlatformVersion", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_PLATFORM_VERSION)));
-			obj.put("currentUsername", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_USERNAME)));
-			obj.put("endpoint", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_ENDPOINT)));
-
-			obj.put("error", err);
-			obj.put("headers", headers);
-			return obj;
+				obj.put("error", err);
+				obj.put("headers", headers);
+				return obj;
+			}
+			return null;
+		} finally {
+			if (c != null){
+				c.close();
+			}
 		}
-		return null;
 	}
 
 	private void tryUploadStoredErrors() {
 		try {
 			boolean hasError;
+			boolean hasFailedUpload = false;
 			do {
 				JSONObject error = getNextError();
 				if (error == null)
@@ -118,9 +136,11 @@ public class OnefileErrorLogging extends CordovaPlugin {
 					hasError = true;
 					if (tryLogErrorOnServer(error)) {
 						removeError(error);
+					} else {
+						hasFailedUpload = true;
 					}
 				}
-			} while (hasError);
+			} while (hasError && !hasFailedUpload);
 		} catch (JSONException e) {
 		}
 	}
@@ -191,7 +211,8 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		ConnectivityManager cm = (ConnectivityManager) cordova.getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
 
 		NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-		if (activeNetwork != null && activeNetwork.isConnectedOrConnecting()) {
+		if (activeNetwork == null || !activeNetwork.isConnectedOrConnecting()) {
+			Log.i("OnefileErrorLogging", "Not connected right now!");
 			return false;
 		}
 		try {
@@ -199,6 +220,7 @@ public class OnefileErrorLogging extends CordovaPlugin {
 				return true;
 			return false;
 		} catch (Exception e) {
+			Log.i("OnefileErrorLogging", "Unable to make request: " + e.getMessage());
 			return false;
 		}
 	}
