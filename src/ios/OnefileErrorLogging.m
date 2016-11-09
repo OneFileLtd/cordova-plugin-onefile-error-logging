@@ -30,10 +30,6 @@
 
     do {
         if([config count] > 0) {
-            NSDictionary *headers = [config objectForKey:@"headers"];
-            NSDictionary *error = [config objectForKey:@"error"];
-            NSString *currentUsername = [config objectForKey:@"currentUsername"];
-            NSString *endpoint = [config objectForKey:@"endpoint"];
             int ID = [[config objectForKey:@"ID"] intValue];
 
             response = [SendRequest makeRequest: config];
