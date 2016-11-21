@@ -29,7 +29,7 @@
     [JSON setValue:[config_error objectForKey:@"name"] forKey:@"Name"];
     [JSON setValue:[config_error objectForKey:@"message"] forKey:@"Message"];
     [JSON setValue:[config_error objectForKey:@"cause"] forKey:@"Cause"];
-    [JSON setValue:[config_error objectForKey:@"stacktrace"] forKey:@"StackTrace"];
+    [JSON setValue:[config_error objectForKey:@"stackTrace"] forKey:@"StackTrace"];
     [JSON setValue:[config objectForKey:@"currentUsername"] forKey:@"CurrentUsername"];
 
     NSData *body = [NSJSONSerialization dataWithJSONObject:JSON options:NSJSONWritingPrettyPrinted error:&error];
