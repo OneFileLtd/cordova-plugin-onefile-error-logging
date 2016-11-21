@@ -17,7 +17,7 @@ public class ErrorDatabaseAccess extends SQLiteOpenHelper {
 			ErrorEntry.COLUMN_CURRENT_PLATFORM + " TEXT NOT NULL, " +
 			ErrorEntry.COLUMN_MESSAGE + " TEXT NOT NULL, " +
 			ErrorEntry.COLUMN_CAUSE + " TEXT NOT NULL, " +
-			ErrorEntry.COLUMN_STACK_TRACE + "StackTrace TEXT NOT NULL, " +
+			ErrorEntry.COLUMN_STACK_TRACE + " TEXT NOT NULL, " +
 			ErrorEntry.COLUMN_CURRENT_PLATFORM_VERSION + " TEXT NOT NULL, "+
 			ErrorEntry.COLUMN_CURRENT_USERNAME + " TEXT NOT NULL,"+
 			ErrorEntry.COLUMN_ENDPOINT + " TEXT NOT NULL);";
