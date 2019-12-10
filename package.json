@@ -1,0 +1,22 @@
+{
+    "name": "cordova-plugin-onefile-error-logging",
+    "version": "1.0.1",
+    "description": "Cordova Plugin Onefile Error Logging",
+    "cordova": {
+        "id": "cordova-plugin-onefile-error-logging",
+        "platforms": [
+            "ios",
+            "android",
+            "windows"
+        ]
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/OneFileLtd/cordova-plugin-onefile-error-logging.git"
+    },
+    "keywords": [
+        "ecosystem:cordova"
+    ],
+    "author": "M Howarth",
+    "license": "Apache-2.0"
+}
