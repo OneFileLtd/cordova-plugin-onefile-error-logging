@@ -1,6 +1,6 @@
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
 		id="cordova-plugin-onefile-error-logging"
-		version="1.0.0">
+		version="1.0.1">
 	<name>OneFile Error Logger</name>
 	<description>Cordova Plugin OneFile Error Logger</description>
 	<license>Onefile Limited</license>
