@@ -15,8 +15,12 @@ typedef NSUInteger CDVLogError;
 @interface OnefileErrorLogging : CDVPlugin
 {
     BOOL _inUse;
+    BOOL _allowSync;
 }
 @property BOOL inUse;
+@property BOOL allowSync;
 
 - (void)logError:(CDVInvokedUrlCommand*)command;
+- (NSDictionary *)getOldestError;
+- (void)scheduleUploads;
 @end
