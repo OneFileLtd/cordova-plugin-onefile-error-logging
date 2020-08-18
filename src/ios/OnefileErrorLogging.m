@@ -49,18 +49,22 @@
     [dateFormatter setLocale: [NSLocale localeWithLocaleIdentifier: DATE_GLOBAL_LOCALE]];
     [dateFormatter setTimeZone: [NSTimeZone timeZoneWithName: @"UTC"]];
     NSDate *lastDate = [dateFormatter dateFromString: [lastErrorLogged objectForKey: @"dateLogged"]];
-    NSDate *currentDate = [NSDate date];
-    NSCalendar *cal = [[NSCalendar alloc] initWithCalendarIdentifier: NSCalendarIdentifierGregorian];
-    NSDateComponents *diff = [cal components: NSCalendarUnitSecond fromDate: lastDate toDate: currentDate options: 0];
-    if((int)[diff second] > TIME_BETWEEN_DUPLICATE_ERRORS_IN_SECONDS) {
-        NSDictionary *last = [lastErrorLogged objectForKey: @"error"];
-        NSDictionary *current =  [error objectForKey: @"error"];
-        if(!([[current objectForKey: @"name"] isEqual: [last objectForKey: @"name"]] &&
-           [[current objectForKey: @"message"] isEqual: [last objectForKey: @"message"]] &&
-           ![[current objectForKey: @"cause"] isEqual: [last objectForKey: @"cause"]]))
-        {
-            [database insertErrorWithDB: db config: error];
+    if (lastDate) {
+        NSDate *currentDate = [NSDate date];
+        NSCalendar *cal = [[NSCalendar alloc] initWithCalendarIdentifier: NSCalendarIdentifierGregorian];
+        NSDateComponents *diff = [cal components: NSCalendarUnitSecond fromDate: lastDate toDate: currentDate options: 0];
+        if((int)[diff second] > TIME_BETWEEN_DUPLICATE_ERRORS_IN_SECONDS) {
+            NSDictionary *last = [lastErrorLogged objectForKey: @"error"];
+            NSDictionary *current =  [error objectForKey: @"error"];
+            if(!([[current objectForKey: @"name"] isEqual: [last objectForKey: @"name"]] &&
+               [[current objectForKey: @"message"] isEqual: [last objectForKey: @"message"]] &&
+               ![[current objectForKey: @"cause"] isEqual: [last objectForKey: @"cause"]]))
+            {
+                [database insertErrorWithDB: db config: error];
+            }
         }
+    } else {
+        [database insertErrorWithDB: db config: error];
     }
     [database closeDatabase: db];
     self.allowSync = YES;
