@@ -22,14 +22,23 @@ import org.json.JSONObject;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class OnefileErrorLogging extends CordovaPlugin {
 
 	BroadcastReceiver receiver;
 	ConnectivityManager conMan;
 	ErrorDatabaseAccess errorDb;
+	public static final long TIME_BETWEEN_DUPLICATE_ERRORS_IN_SECONDS = 30;
+	public static final long SYNC_n_EVERY_SECONDS = 5 * 60;
+	public static final String DATE_STRING_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
+	public  static final int MAX_UPLOADABLE_ERRORS = 1000;
+	Timer timer = null;
 
 	@Override
 	public void initialize(final CordovaInterface cordova, CordovaWebView webView) {
@@ -45,7 +54,10 @@ public class OnefileErrorLogging extends CordovaPlugin {
 					if (activeNetwork != null && activeNetwork.isConnectedOrConnecting()) {
 						cordova.getThreadPool().execute(new Runnable() {
 							public void run() {
-								tryUploadStoredErrors();
+								if (timer == null) {
+									timer = new Timer();
+									timer.schedule(new scheduledUploadSyncTask(), SYNC_n_EVERY_SECONDS * 1000);
+								}
 							}
 						});
 					}
@@ -66,7 +78,15 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		}
 	}
 
-	private JSONObject getNextError() throws JSONException {
+	private JSONObject getLastError() throws JSONException {
+		return getError(" DESC");
+	}
+
+	private JSONObject getOldestError() throws JSONException {
+		return getError(" ASC");
+	}
+
+	private JSONObject getError(String order) throws JSONException {
 		SQLiteDatabase db = getDbConnection(cordova.getActivity()).getReadableDatabase();
 		String[] projection = {
 				ErrorDatabaseAccess.ErrorEntry.COLUMN_ID,
@@ -78,10 +98,11 @@ public class OnefileErrorLogging extends CordovaPlugin {
 				ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_PLATFORM,
 				ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_PLATFORM_VERSION,
 				ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_USERNAME,
-				ErrorDatabaseAccess.ErrorEntry.COLUMN_ENDPOINT
+				ErrorDatabaseAccess.ErrorEntry.COLUMN_ENDPOINT,
+				ErrorDatabaseAccess.ErrorEntry.COLUMN_DATE_LOGGED
 		};
 
-		String sortOrder = ErrorDatabaseAccess.ErrorEntry.COLUMN_DATE_LOGGED + " ASC";
+		String sortOrder = ErrorDatabaseAccess.ErrorEntry.COLUMN_DATE_LOGGED + order;
 		Cursor c = null;
 		try {
 			c = db.query(
@@ -112,6 +133,7 @@ public class OnefileErrorLogging extends CordovaPlugin {
 				obj.put("currentUsername", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_CURRENT_USERNAME)));
 				obj.put("endpoint", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_ENDPOINT)));
 
+				obj.put("dateLogged", c.getString(c.getColumnIndexOrThrow(ErrorDatabaseAccess.ErrorEntry.COLUMN_DATE_LOGGED)));
 				obj.put("error", err);
 				obj.put("headers", headers);
 				return obj;
@@ -128,19 +150,46 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		try {
 			boolean hasError;
 			boolean hasFailedUpload = false;
+			int max_uploadable_errors = 1000;
 			do {
-				JSONObject error = getNextError();
-				if (error == null)
-					hasError = false;
-				else {
-					hasError = true;
-					if (tryLogErrorOnServer(error)) {
-						removeError(error);
-					} else {
-						hasFailedUpload = true;
+				JSONObject oldestError = null;
+				Date oldestDate = null;
+				long seconds = Long.MAX_VALUE;
+				try {
+					oldestError = getOldestError();
+					if (oldestError != null) {
+						String dateLogged = oldestError.getString("dateLogged");
+						SimpleDateFormat format = new SimpleDateFormat(DATE_STRING_FORMAT);
+						try {
+							oldestDate = format.parse(dateLogged);
+							System.out.println(oldestDate);
+						} catch (ParseException e) {
+							e.printStackTrace();
+						}
 					}
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
-			} while (hasError && !hasFailedUpload);
+				if (oldestDate != null) {
+					Date currentDate = new Date();
+					seconds = (currentDate.getTime() - oldestDate.getTime()) / 1000;
+				}
+				if (seconds > SYNC_n_EVERY_SECONDS) {
+					if (oldestError == null)
+						hasError = false;
+					else {
+						hasError = true;
+						if (tryLogErrorOnServer(oldestError)) {
+							removeError(oldestError);
+						} else {
+							hasFailedUpload = true;
+						}
+					}
+				} else {
+					hasError = false;
+				}
+				max_uploadable_errors ++;
+			} while (max_uploadable_errors < MAX_UPLOADABLE_ERRORS && hasError && !hasFailedUpload);
 		} catch (JSONException e) {
 		}
 	}
@@ -160,14 +209,11 @@ public class OnefileErrorLogging extends CordovaPlugin {
 
 	@Override
 	public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
-		Log.i("OnefileErrorLogging", "Im in here!");
 		if (action.equals("logError")) {
 			final JSONObject config = args.getJSONObject(0);
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
-					if (tryLogErrorOnServer(config)) {
-						callbackContext.success();
-					} else if (saveErrorToDatabase(config)) {
+					if (trySavingError(config)) {
 						callbackContext.success();
 					} else {
 						callbackContext.error("Unable to log error");
@@ -179,10 +225,75 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		return false;
 	}
 
+ 	private boolean trySavingError(JSONObject config) {
+		Date lastDate = null;
+		long seconds = Long.MAX_VALUE;
+		boolean sameError = false;
+		JSONObject lastError;
+		try {
+			lastError = getLastError();
+			if (lastError != null) {
+				String dateLogged = lastError.getString("dateLogged");
+				SimpleDateFormat format = new SimpleDateFormat(DATE_STRING_FORMAT);
+				try {
+					lastDate = format.parse(dateLogged);
+					System.out.println(lastDate);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					return false;
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+		if (lastDate != null) {
+			Date currentDate = new Date();
+			seconds = (currentDate.getTime() - lastDate.getTime()) / 1000;
+		}
+		try {
+			JSONObject last = lastError.getJSONObject("error");
+			JSONObject current = config.getJSONObject("error");
+			String name1 = current.getString("name");
+			String name2 = last.getString("name");
+			String message1 = current.getString("message");
+			String message2 = last.getString("message");
+			String cause1 = current.getString("cause");
+			String cause2 = last.getString("cause");
+			if(name1.equals(name2) &&
+					message1.equals(message2) &&
+					cause1.equals(cause2)) {
+				sameError = true;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+		if (!sameError || (sameError && seconds > TIME_BETWEEN_DUPLICATE_ERRORS_IN_SECONDS)) {
+			if (saveErrorToDatabase(config)) {
+				if (timer == null) {
+					timer = new Timer();
+					timer.schedule(new scheduledUploadSyncTask(), SYNC_n_EVERY_SECONDS * 1000);
+				}
+			} else {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	class scheduledUploadSyncTask extends TimerTask {
+		@Override
+		public void run() {
+			timer = null;
+			tryUploadStoredErrors();
+		}
+	};
+
 	private boolean saveErrorToDatabase(JSONObject config) {
 		try {
 			SQLiteDatabase db = getDbConnection(cordova.getActivity()).getWritableDatabase();
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+			SimpleDateFormat sdf = new SimpleDateFormat(DATE_STRING_FORMAT);
 			String currentDateandTime = sdf.format(new Date());
 			JSONObject headers = config.getJSONObject("headers");
 			JSONObject error = config.getJSONObject("error");
@@ -201,7 +312,6 @@ public class OnefileErrorLogging extends CordovaPlugin {
 
 			db.insert(ErrorDatabaseAccess.ErrorEntry.TABLE_NAME, null, values);
 		} catch (Exception e) {
-			Log.i("OnefileErrorLogging", "Unable to save error: " + e.getMessage());
 			return false;
 		}
 		return true;
@@ -212,7 +322,6 @@ public class OnefileErrorLogging extends CordovaPlugin {
 
 		NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
 		if (activeNetwork == null || !activeNetwork.isConnectedOrConnecting()) {
-			Log.i("OnefileErrorLogging", "Not connected right now!");
 			return false;
 		}
 		try {
@@ -220,7 +329,6 @@ public class OnefileErrorLogging extends CordovaPlugin {
 				return true;
 			return false;
 		} catch (Exception e) {
-			Log.i("OnefileErrorLogging", "Unable to make request: " + e.getMessage());
 			return false;
 		}
 	}
@@ -256,7 +364,6 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		if (HttpResult == HttpURLConnection.HTTP_OK) {
 			return true;
 		} else {
-			Log.i("OnefileErrorLogging", "Error Code: " + HttpResult);
 			return false;
 		}
 	}
