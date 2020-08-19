@@ -229,7 +229,7 @@ public class OnefileErrorLogging extends CordovaPlugin {
 		Date lastDate = null;
 		long seconds = Long.MAX_VALUE;
 		boolean sameError = false;
-		JSONObject lastError;
+		JSONObject lastError = null;
 		try {
 			lastError = getLastError();
 			if (lastError != null) {
@@ -240,34 +240,27 @@ public class OnefileErrorLogging extends CordovaPlugin {
 					System.out.println(lastDate);
 				} catch (ParseException e) {
 					e.printStackTrace();
-					return false;
+				}
+				if (lastDate != null) {
+					Date currentDate = new Date();
+					seconds = (currentDate.getTime() - lastDate.getTime()) / 1000;
+				}
+				JSONObject last = lastError.getJSONObject("error");
+				JSONObject current = config.getJSONObject("error");
+				String name1 = current.getString("name");
+				String name2 = last.getString("name");
+				String message1 = current.getString("message");
+				String message2 = last.getString("message");
+				String cause1 = current.getString("cause");
+				String cause2 = last.getString("cause");
+				if (name1.equals(name2) &&
+						message1.equals(message2) &&
+						cause1.equals(cause2)) {
+					sameError = true;
 				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			return false;
-		}
-		if (lastDate != null) {
-			Date currentDate = new Date();
-			seconds = (currentDate.getTime() - lastDate.getTime()) / 1000;
-		}
-		try {
-			JSONObject last = lastError.getJSONObject("error");
-			JSONObject current = config.getJSONObject("error");
-			String name1 = current.getString("name");
-			String name2 = last.getString("name");
-			String message1 = current.getString("message");
-			String message2 = last.getString("message");
-			String cause1 = current.getString("cause");
-			String cause2 = last.getString("cause");
-			if(name1.equals(name2) &&
-					message1.equals(message2) &&
-					cause1.equals(cause2)) {
-				sameError = true;
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
 		}
 		if (!sameError || (sameError && seconds > TIME_BETWEEN_DUPLICATE_ERRORS_IN_SECONDS)) {
 			if (saveErrorToDatabase(config)) {
