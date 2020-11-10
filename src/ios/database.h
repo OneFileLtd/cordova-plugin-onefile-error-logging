@@ -30,4 +30,7 @@
 
 + (void)insertErrorWithDB:(sqlite3 *)db config:(NSDictionary *)config;
 + (NSDictionary *)getErrorFromDB: (sqlite3 *)db;
++ (NSDictionary *)getLastErrorFromDB: (sqlite3 *)db;
++ (NSDictionary *)getErrorFromDB: (sqlite3 *)db sql:(const char *) sql;
++ (NSDictionary *)getOldestErrorFromDB: (sqlite3 *)db;
 @end

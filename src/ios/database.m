@@ -9,9 +9,7 @@
 #import "database.h"
 
 @implementation database
-/*
- *
- */
+
 + (sqlite3 *)createOpenDatabase
 {
     sqlite3 *db = NULL;
@@ -23,17 +21,11 @@
     return db;
 }
 
-/*
- *
- */
 + (void)closeDatabase:(sqlite3 *)db
 {
     sqlite3_close(db);
 }
 
-/*
- *
- */
 + (void)createTable:(sqlite3 *)db
 {
     sqlite3_stmt *sqlStmt;
@@ -54,9 +46,6 @@
     sqlite3_reset(sqlStmt);
 }
 
-/*
- *
- */
 + (void)insertErrorWithDB:(sqlite3 *)db config:(NSDictionary *)config
 {
     sqlite3_stmt *sqlStmt;
@@ -111,25 +100,30 @@
     }
 }
 
-/*
- *
- */
 + (NSString *)validateStringForUTF8: (char *)stringUTF
 {
     NSString *validString = ((stringUTF == nil) || (strcmp(stringUTF, "\0") == 0)) ? @"" : [NSString stringWithUTF8String: stringUTF];
     return validString;
 }
 
-/*
- *
- */
-+ (NSDictionary *)getErrorFromDB: (sqlite3 *)db
++ (NSDictionary *)getOldestErrorFromDB: (sqlite3 *)db
+{
+    const char *sql = "SELECT UserID, CurrentPlatform, CurrentPlatformVersion, Name, Message, Cause, StackTrace, ID, CurrentUsername, endpoint, DateLogged FROM Error ORDER BY DateLogged ASC LIMIT 1;";
+    return [database getErrorFromDB: db sql: sql];
+}
+
++ (NSDictionary *)getLastErrorFromDB: (sqlite3 *)db
+{
+    const char *sql = "SELECT UserID, CurrentPlatform, CurrentPlatformVersion, Name, Message, Cause, StackTrace, ID, CurrentUsername, endpoint, DateLogged FROM Error ORDER BY DateLogged DESC LIMIT 1;";
+    return [database getErrorFromDB: db sql: sql];
+}
+
++ (NSDictionary *)getErrorFromDB: (sqlite3 *)db sql:(const char *) sql
 {
     sqlite3_stmt *sqlStmt;
     NSDictionary *config = [[NSDictionary alloc] init];
     NSDictionary *header = [[NSDictionary alloc] init];
     NSDictionary *error = [[NSDictionary alloc] init];
-    const char *sql = "SELECT UserID, CurrentPlatform, CurrentPlatformVersion, Name, Message, Cause, StackTrace, ID, CurrentUsername, endpoint, DateLogged FROM Error LIMIT 1;";
     if((sqlite3_prepare_v2(db, sql, BUFFER_SIZE, &sqlStmt, NULL)) == SQLITE_OK)
     {
         while((sqlite3_step(sqlStmt)) == SQLITE_ROW)
@@ -172,9 +166,6 @@
     return config;
 }
 
-/*
- *
- */
 + (void)deleteErrorFromDB: (sqlite3 *)db usingID:(int)id
 {
     sqlite3_stmt *sqlStmt;
@@ -192,9 +183,6 @@
     sqlite3_finalize(sqlStmt);
 }
 
-/*
- *
- */
 + (void)deleteErrorTable:(sqlite3 *)db
 {
     sqlite3_stmt *sqlStmt;
@@ -211,9 +199,6 @@
     sqlite3_finalize(sqlStmt);
 }
 
-/*
- *
- */
 + (int)queryUserVersion:(sqlite3 *)db {
     static sqlite3_stmt *stmt_version;
     int databaseVersion = 0;
